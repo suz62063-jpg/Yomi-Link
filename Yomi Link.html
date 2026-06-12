@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>YomiLink Studio</title>
+<style>
+/* =========================================================
+   UI 核心：大厂级极简 Slate 调色盘与版式
+========================================================= */
+:root {
+    --bg-main: #212121;
+    --bg-sidebar: #171717;
+    --bg-surface: #2f2f2f;
+    --bg-card: #2f2f2f;
+    --border-color: #424242;
+    --text-main: #ececec;
+    --text-sec: #b4b4b4;
+    
+    --accent-casual: #3b82f6; 
+    --accent-pro: #10a37f; 
+    --accent-se: #f59e0b; 
+    
+    --transition-smooth: all 0.3s ease;
+}
+
+[data-theme="light"] {
+    --bg-main: #ffffff;
+    --bg-sidebar: #f9f9f9;
+    --bg-surface: #f0f0f0;
+    --bg-card: #ffffff;
+    --border-color: #e5e5e5;
+    --text-main: #0d0d0d;
+    --text-sec: #8e8e8e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; background: var(--bg-main); font-family: "SF Pro Text", "Inter", -apple-system, BlinkMacSystemFont, sans-serif; color: var(--text-main); }
+
+#app { display: flex; width: 100vw; height: 100vh; position: relative; }
+
+/* ==== Sidebar ==== */
+.sidebar {
+    width: 260px; background: var(--bg-sidebar); display: flex; flex-direction: column;
+    transition: transform 0.3s ease, width 0.3s ease; z-index: 90; flex-shrink: 0;
+}
+.sidebar.collapsed { width: 0; transform: translateX(-100%); overflow: hidden; }
+.sidebar-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; }
+.btn-new-chat {
+    flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: transparent; border: none; color: var(--text-main); padding: 8px; border-radius: 8px;
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.2s;
+}
+.btn-new-chat:hover { background: var(--bg-surface); }
+.icon-btn {
+    width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: var(--text-main); cursor: pointer; transition: 0.2s; flex-shrink: 0;
+}
+.icon-btn:hover { background: var(--bg-surface); }
+
+.chat-history { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; -webkit-overflow-scrolling: touch; }
+.chat-history::-webkit-scrollbar { width: 0; }
+.history-item {
+    padding: 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center;
+    font-size: 14px; color: var(--text-main); transition: 0.2s; position: relative;
+}
+.history-item:hover, .history-item.active { background: var(--bg-surface); }
+.history-item .title-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.history-item .btn-del {
+    display: none; background: transparent; border: none; color: var(--text-sec); cursor: pointer; padding: 4px;
+}
+.history-item:hover .btn-del { display: block; color: #ef4444; }
+.sidebar-footer { padding: 12px; border-top: 1px solid var(--border-color); }
+.user-profile-btn { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.user-profile-btn:hover { background: var(--bg-surface); }
+.user-avatar-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--bg-surface); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; color:var(--text-sec);}
+.user-name-label { font-size: 14px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ==== Main Chat Area ==== */
+.main-container { flex: 1; display: flex; flex-direction: column; position: relative; background: var(--bg-main); transition: 0.3s; overflow: hidden; height: 100%; }
+
+.top-navbar {
+    height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+    z-index: 80; background: transparent; padding-top: env(safe-area-inset-top); flex-shrink: 0;
+}
+.navbar-center-title { font-size: 16px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; user-select: none; }
+
+/* 恢复原始迎宾界面与指定标语 */
+.welcome-screen {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 10; pointer-events: none; transition: opacity 0.4s ease; padding: 20px; text-align: center;
+}
+.welcome-screen.hidden { opacity: 0; }
+.welcome-logo { width: 64px; height: 64px; border-radius: 50%; background: var(--text-main); display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+.welcome-title {
+    font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #ececec, #8e8e8e);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; letter-spacing: 1px;
+}
+[data-theme="light"] .welcome-title { background: linear-gradient(135deg, #0d0d0d, #666666); -webkit-background-clip: text; }
+
+.chat-wrapper {
+    flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 32px;
+    max-width: 800px; margin: 0 auto; width: 100%; scroll-behavior: smooth; z-index: 20;
+    -webkit-overflow-scrolling: touch; padding-bottom: 60px;
+}
+.chat-wrapper::-webkit-scrollbar { width: 0; }
+
+.message-row { display: flex; gap: 16px; max-width: 100%; animation: fadeIn 0.4s ease both; }
+@keyframes fadeIn { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+.message-row.user { flex-direction: row-reverse; }
+
+/* 大厂风格 AI 渐变星芒头像 */
+.msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; object-fit: cover;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; background: var(--bg-surface);
+}
+.message-row.ai .msg-avatar { 
+    border-radius: 8px; 
+    background: linear-gradient(135deg, #10a37f 0%, #0b7a5e 100%);
+    box-shadow: 0 4px 10px rgba(16, 163, 127, 0.2);
+    color: white;
+}
+
+.msg-bubble { display: flex; flex-direction: column; gap: 4px; max-width: 85%; min-width: 0; }
+.message-row.user .msg-bubble { align-items: flex-end; }
+.msg-content { font-size: 15.5px; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; width: 100%; }
+.message-row.user .msg-content { background: var(--bg-surface); padding: 10px 16px; border-radius: 20px; border-top-right-radius: 4px; }
+
+/* ==== 呼吸灯思考状态动画 CSS ==== */
+.thinking-indicator {
+    display: flex; align-items: center; gap: 4px; background: var(--bg-surface); padding: 10px 16px; border-radius: 20px; border-top-left-radius: 4px; width: fit-content;
+}
+.thinking-dot {
+    width: 6px; height: 6px; background: var(--text-sec); border-radius: 50%; opacity: 0.4; animation: pulse 1.4s infinite ease-in-out both;
+}
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1.1); opacity: 1; }
+}
+
+/* ==== 代码渲染与复制卡片 ==== */
+.code-card, .artifact-card {
+    background: #000; border: 1px solid var(--border-color); border-radius: 12px;
+    margin-top: 10px; width: 100%; max-width: 600px; overflow: hidden; display: flex; flex-direction: column;
+}
+.code-header, .artifact-header {
+    display: flex; justify-content: space-between; align-items: center; padding: 8px 16px;
+    background: #1a1a1a; border-bottom: 1px solid var(--border-color);
+}
+.code-lang { font-size: 12px; color: var(--text-sec); text-transform: uppercase; font-weight: 600; }
+.btn-copy {
+    background: transparent; border: none; color: var(--text-sec); font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: 0.2s;
+}
+.btn-copy:hover { color: var(--text-main); }
+.code-card pre {
+    margin: 0; padding: 16px; border: none; border-radius: 0; overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace; font-size: 13.5px; max-width: 100%;
+}
+code { font-family: 'JetBrains Mono', monospace; }
+
+.artifact-card { background: var(--bg-card); }
+.artifact-header { background: transparent; font-weight: 600; font-size: 14px; color: var(--text-main); border-bottom: none; padding: 12px 16px 4px 16px; }
+.btn-open-workspace {
+    background: var(--text-main); color: var(--bg-main); border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; align-self: flex-start; margin: 0 16px 16px 16px; transition: 0.2s;
+}
+.btn-open-workspace:hover { opacity: 0.9; transform: translateY(-1px); }
+
+/* ==== Input Dock ==== */
+.input-area-container {
+    padding: 0 16px 24px 16px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--bg-main) 70%, transparent);
+    display: flex; justify-content: center; z-index: 50; position: relative; flex-shrink: 0;
+}
+.input-dock {
+    width: 100%; max-width: 800px; background: var(--bg-surface); border-radius: 26px;
+    padding: 8px 12px 8px 20px; display: flex; align-items: flex-end; gap: 12px;
+    border: 1px solid var(--border-color); box-shadow: 0 0 15px rgba(0,0,0,0.1);
+}
+.input-dock:focus-within { border-color: var(--text-sec); }
+.input-textarea {
+    flex: 1; min-height: 24px; max-height: 150px; border: none; background: transparent;
+    font-size: 16px; color: var(--text-main); outline: none; resize: none; line-height: 1.5; padding-bottom: 8px; padding-top: 4px;
+}
+.input-textarea::placeholder { color: var(--text-sec); }
+.btn-send {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--text-sec); color: var(--bg-main);
+    border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; flex-shrink: 0; margin-bottom: 4px; pointer-events: none; opacity: 0.5;
+}
+.btn-send.active { background: var(--text-main); opacity: 1; pointer-events: auto; }
+.btn-send.active:hover { transform: scale(1.05); }
+
+/* ==== Workspace Canvas ==== */
+.workspace {
+    width: 45%; background: var(--bg-main); border-left: 1px solid var(--border-color);
+    display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 100; position: relative; height: 100%;
+}
+.workspace.hidden { position: absolute; right: 0; transform: translateX(100%); }
+.workspace-header { height: 56px; padding: 0 16px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.workspace-body { flex: 1; background: #fff; overflow: hidden; display: flex; flex-direction: column; }
+#live-preview-frame { width: 100%; height: 100%; border: none; background: #fff; }
+#code-viewer { width: 100%; height: 100%; background: #0d0d0d; color: #ececec; border: none; padding: 20px; font-family: monospace; resize: none; display: none; }
+
+/* ==== Modal ==== */
+.modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 200;
+    display: none; align-items: center; justify-content: center; padding: 20px; opacity: 0; transition: 0.2s;
+}
+.modal-overlay.show { display: flex; opacity: 1; }
+.modal-card {
+    background: var(--bg-card); width: 100%; max-width: 400px; border-radius: 16px; padding: 24px;
+    border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3); transform: scale(0.95); transition: 0.2s;
+}
+.modal-overlay.show .modal-card { transform: scale(1); }
+.modal-title { font-size: 20px; font-weight: 700; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+
+.form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+.form-group label { font-size: 13px; color: var(--text-sec); font-weight: 500; }
+.form-input {
+    background: transparent; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;
+    color: var(--text-main); font-size: 15px; outline: none; transition: 0.2s;
+}
+.form-input:focus { border-color: var(--text-main); }
+.btn-primary {
+    width: 100%; background: var(--text-main); color: var(--bg-main); padding: 12px; border-radius: 8px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s;
+}
+
+.avatar-upload-box { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 24px; }
+.avatar-preview-lg {
+    width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--bg-surface);
+    display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; cursor: pointer; border: 2px dashed var(--border-color); transition: 0.2s;
+}
+.avatar-preview-lg:hover { opacity: 0.8; }
+
+.mobile-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 85; display: none; opacity: 0; transition: 0.3s; }
+
+@media(max-width: 768px) {
+    #app { flex-direction: column; }
+    .sidebar { position: absolute; left: 0; top: 0; bottom: 0; height: 100%; z-index: 90; transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .mobile-backdrop.show { display: block; opacity: 1; }
+    .workspace { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 100; transform: translateY(100%); }
+    .workspace.open { transform: translateY(0); }
+    .workspace.hidden { transform: translateY(100%); position: absolute; }
+}
+@media(min-width: 769px) { .icon-btn.menu-btn { display: none; } }
+</style>
+</head>
+<body data-theme="dark">
+
+<div id="app">
+    <!-- 移动端蒙版 -->
+    <div class="mobile-backdrop" id="mobile-backdrop" onclick="toggleSidebar(false)"></div>
+
+    <!-- 左侧抽屉 -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="icon-btn" onclick="toggleSidebar(false)" style="display: var(--show-close-on-mobile, none);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <button class="icon-btn" onclick="openSettingsModal()" title="系统配置">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+</button>
+            <button class="btn-new-chat" onclick="createNewSession()">
+                <span>新建会话</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+        </div>
+        
+        <div class="chat-history" id="session-list"></div>
+        
+        <div class="sidebar-footer">
+            <div class="user-profile-btn" onclick="openProfileModal()">
+                <div class="user-avatar-small" id="sidebar-avatar">U</div>
+                <div class="user-name-label" id="sidebar-name">User</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主聊天区 -->
+    <main class="main-container">
+        <!-- 还原经典版迎宾屏界面 -->
+        <div class="welcome-screen" id="welcome-screen">
+            <div class="welcome-logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--bg-main)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+            </div>
+            <div class="welcome-title">一起思考一起HI</div>
+        </div>
+
+        <header class="top-navbar">
+            <button class="icon-btn menu-btn" onclick="toggleSidebar(true)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="navbar-center-title" id="top-title" onclick="toggleMode()" style="cursor:pointer;" title="点击切换模型">
+                Yomi Link <span style="font-size:12px; color:var(--text-sec);">▾</span>
+            </div>
+            <button class="icon-btn" onclick="createNewSession()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+        </header>
+
+        <div class="chat-wrapper" id="chat-scroller"></div>
+
+        <div class="input-area-container">
+            <div class="input-dock" id="input-dock">
+                <textarea class="input-textarea" id="main-input" placeholder="给 Yomi 发送消息..." rows="1" oninput="autoExpand(this)"></textarea>
+                <button class="btn-send" id="send-button" onclick="handleSend()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 工作区 Canvas -->
+    <section class="workspace hidden" id="workspace">
+        <div class="workspace-header">
+            <div style="font-size:14px; font-weight:600;" id="ws-title">Live Preview</div>
+            <div style="display:flex; gap:8px;">
+                <button class="icon-btn" onclick="switchWsView('code')" id="ws-btn-code" title="源码">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                </button>
+                <button class="icon-btn" onclick="switchWsView('preview')" id="ws-btn-preview" style="color:var(--accent-pro);" title="预览">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                </button>
+                <button class="icon-btn" onclick="toggleWorkspace(false)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+        <div class="workspace-body">
+            <iframe id="live-preview-frame" sandbox="allow-scripts allow-modals"></iframe>
+            <textarea id="code-viewer" readonly></textarea>
+        </div>
+    </section>
+
+    <!-- 个人资料 Modal -->
+    <div class="modal-overlay" id="profile-modal">
+        <div class="modal-card">
+            <div class="modal-title">
+                个人资料
+                <button class="icon-btn" onclick="closeModal('profile-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="avatar-upload-box">
+                <input type="file" id="avatar-input" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+                <div class="avatar-preview-lg" id="profile-avatar-preview" onclick="document.getElementById('avatar-input').click()">U</div>
+                <div style="font-size:12px; color:var(--text-sec);">点击更换头像</div>
+            </div>
+            <div class="form-group">
+                <label>您的称呼</label>
+                <input type="text" class="form-input" id="profile-name-input" placeholder="输入姓名">
+            </div>
+            <button class="btn-primary" onclick="saveProfile()">保存设置</button>
+        </div>
+    </div>
+
+    <!-- 系统配置 Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-card">
+            <div class="modal-title">
+                系统配置
+                <button class="icon-btn" onclick="closeModal('settings-modal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="form-group">
+                <label>API 供应商</label>
+                <select class="form-input" id="api-provider" onchange="presetApi()">
+                    <option value="deepseek">DeepSeek (默认)</option>
+                    <option value="openai">OpenAI</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Base URL</label>
+                <input type="text" class="form-input" id="api-base">
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" class="form-input" id="api-key" placeholder="sk-..." style="width: 100%; padding-right: 40px;">
+                    <button type="button" class="icon-btn" onclick="toggleApiKeyVisibility()" style="position: absolute; right: 4px; width: 32px; height: 32px;" title="显示/隐藏 API Key">
+                        <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-sec)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>默认主模型</label>
+                <input type="text" class="form-input" id="api-model">
+                <span style="font-size:11px; color:var(--text-sec); margin-top:2px;">
+                    *注：开启 Link+ Pro 时，系统会自动升阶调度该供应商的顶级旗舰模型。
+                </span>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:16px;">
+                <button class="btn-primary" onclick="saveSettings()">保存配置</button>
+                <button class="btn-primary" style="background:transparent; border:1px solid #ef4444; color:#ef4444;" onclick="hardReset()">清除数据</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+let userProfile = { name: "User", avatar: "" };
+let sessions = {};
+let currentSessionId = '';
+let currentMode = 'casual'; 
+let isGenerating = false;
+let currentArtifactCode = '';
+
+// 系统 Prompt (极致准确化设计，强化普通版及高级版的回复质量)
+const PROMPTS = {
+    casual: `你是 Yomi AI。你自然亲切，但回答绝对追求事实准确与逻辑严密。
+如果你在回答时需要生成代码，请写出结构完整、无语法漏洞的代码，不要省略关键模块。`,
+    pro: `You are Yomi AI (Link+ Pro), an elite reasoning and coding assistant. 
+Your core directive is absolute, 100% accuracy. 
+When given a task or complex question:
+1. Break down the logic step-by-step before implementing.
+2. Rigorously check syntax, edge cases, and all constraints.
+3. Write fully completed, bug-free, production-grade code. Never omit sections or use placeholders like '// implement rest here'.
+When writing HTML/CSS/JS/SVG, output a complete, standalone block using standard markdown \`\`\`html ... \`\`\`.`,
+    se: `你是 Yomi Link SE。极简、高效、准确。要求：极大限度节约Token，直接给出经过严格推理、百分百正确的最终答案或完整代码（渲染UI请用 markdown \`\`\`html ... \`\`\` 包裹）。拒绝任何寒暄、废话、闲聊和免责声明。`
+};
+
+function initApp() {
+    const savedProfile = localStorage.getItem('yomilink_profile');
+    if (savedProfile) userProfile = JSON.parse(savedProfile);
+    
+    document.getElementById('api-provider').value = localStorage.getItem('yomilink_api_prov') || 'deepseek';
+    document.getElementById('api-base').value = localStorage.getItem('yomilink_api_base') || 'https://api.deepseek.com/v1';
+    document.getElementById('api-key').value = localStorage.getItem('yomilink_api_key') || '';
+    document.getElementById('api-model').value = localStorage.getItem('yomilink_api_model') || 'deepseek-chat';
+
+    const savedSessions = localStorage.getItem('yomilink_sessions');
+    if (savedSessions) sessions = JSON.parse(savedSessions);
+
+    updateProfileUI();
+
+    const sids = Object.keys(sessions);
+    if (sids.length > 0) {
+        currentSessionId = sids[sids.length - 1]; 
+        renderSidebarSessions();
+        renderActiveHistory();
+    } else {
+        createNewSession();
+    }
+}
+
+// ==== 编码转码工具 ====
+function encodeBase64(str) { return btoa(encodeURIComponent(str)); }
+function decodeBase64(str) { return decodeURIComponent(atob(str)); }
+
+// ==== 复制功能 ====
+async function copyFromB64(b64, btn) {
+    try {
+        const code = decodeBase64(b64);
+        await navigator.clipboard.writeText(code);
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10a37f" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> 成功`;
+        setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+    } catch (e) {
+        btn.innerText = "复制失败";
+    }
+}
+
+// ==== 头像与配置 ====
+function openProfileModal() {
+    document.getElementById('profile-name-input').value = userProfile.name;
+    const preview = document.getElementById('profile-avatar-preview');
+    if (userProfile.avatar) preview.innerHTML = `<img src="${userProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    else preview.innerHTML = userProfile.name.charAt(0).toUpperCase();
+    document.getElementById('profile-modal').classList.add('show');
+}
+
+function handleAvatarUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const maxSize = 200; 
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > maxSize) { h *= maxSize / w; w = maxSize; } } 
+            else { if (h > maxSize) { w *= maxSize / h; h = maxSize; } }
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(img, 0, 0, w, h);
+            userProfile.avatar = canvas.toDataURL('image/jpeg', 0.8);
+            openProfileModal(); 
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function saveProfile() {
+    userProfile.name = document.getElementById('profile-name-input').value || "User";
+    localStorage.setItem('yomilink_profile', JSON.stringify(userProfile));
+    updateProfileUI();
+    renderActiveHistory(); 
+    closeModal('profile-modal');
+}
+
+function updateProfileUI() {
+    const sName = document.getElementById('sidebar-name');
+    const sAvatar = document.getElementById('sidebar-avatar');
+    sName.innerText = userProfile.name;
+    if (userProfile.avatar) sAvatar.innerHTML = `<img src="${userProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    else sAvatar.innerHTML = userProfile.name.charAt(0).toUpperCase();
+}
+
+function createNewSession() {
+    const sid = 'sid_' + Date.now();
+    sessions[sid] = { title: '新会话', history: [] };
+    currentSessionId = sid;
+    saveSessions(); renderSidebarSessions(); renderActiveHistory();
+    if(window.innerWidth <= 768) toggleSidebar(false);
+}
+
+function saveSessions() { localStorage.setItem('yomilink_sessions', JSON.stringify(sessions)); }
+
+function renderSidebarSessions() {
+    const list = document.getElementById('session-list');
+    list.innerHTML = '';
+    Object.keys(sessions).reverse().forEach(sid => {
+        const item = document.createElement('div');
+        item.className = `history-item ${sid === currentSessionId ? 'active' : ''}`;
+        item.onclick = () => { currentSessionId = sid; renderSidebarSessions(); renderActiveHistory(); if(window.innerWidth <= 768) toggleSidebar(false); toggleWorkspace(false); };
+        item.innerHTML = `<span class="title-text">${sessions[sid].title}</span><button class="btn-del" onclick="delSession('${sid}', event)">✕</button>`;
+        list.appendChild(item);
+    });
+}
+
+function delSession(sid, e) {
+    e.stopPropagation(); delete sessions[sid];
+    const keys = Object.keys(sessions);
+    if (keys.length === 0) createNewSession();
+    else { if (currentSessionId === sid) currentSessionId = keys[0]; saveSessions(); renderSidebarSessions(); renderActiveHistory(); }
+}
+
+function renderActiveHistory() {
+    const scroller = document.getElementById('chat-scroller');
+    scroller.innerHTML = '';
+    const history = sessions[currentSessionId].history;
+    const welcome = document.getElementById('welcome-screen');
+    if (history.length === 0) { welcome.classList.remove('hidden'); } 
+    else { welcome.classList.add('hidden'); history.forEach(msg => { renderBubble(msg.role, msg.content); }); }
+}
+
+// ==== 高级 Markdown 解析 ====
+function parseMarkdown(text) {
+    let id = 0;
+    const codeBlocks = {};
+    
+    let processedText = text.replace(/```([a-zA-Z]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const placeholder = `__CODEBLOCK_${id}__`;
+        codeBlocks[placeholder] = { lang, code };
+        id++;
+        return placeholder;
+    });
+
+    processedText = processedText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    processedText = processedText.replace(/`([^`\n]+)`/g, '<code style="background:var(--bg-surface);padding:2px 6px;border-radius:4px;">$1</code>');
+    processedText = processedText.replace(/\n/g, '<br>');
+
+    for (const [placeholder, data] of Object.entries(codeBlocks)) {
+        let { lang, code } = data;
+        lang = lang ? lang.toLowerCase() : 'code';
+        const b64 = encodeBase64(code);
+        let blockHtml = '';
+
+        if (['html', 'svg', 'javascript', 'js', 'css'].includes(lang)) {
+            blockHtml = `
+                <div class="artifact-card">
+                    <div class="artifact-header">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-pro)" stroke-width="2.5"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon></svg>
+                            Interactive Component (${lang})
+                        </div>
+                        <button class="btn-copy" onclick="copyFromB64('${b64}', this)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制代码
+                        </button>
+                    </div>
+                    <button class="btn-open-workspace" onclick="openArtifact('${b64}')">点此渲染 / 展开完整代码</button>
+                </div>
+            `;
+        } else {
+            const safeCodeDisplay = code.replace(/</g, '&lt;').replace(/>/g, '&gt;'); 
+            blockHtml = `
+                <div class="code-card">
+                    <div class="code-header">
+                        <span class="code-lang">${lang}</span>
+                        <button class="btn-copy" onclick="copyFromB64('${b64}', this)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> 复制
+                        </button>
+                    </div>
+                    <pre><code>${safeCodeDisplay}</code></pre>
+                </div>
+            `;
+        }
+        processedText = processedText.replace(placeholder, blockHtml);
+    }
+    return processedText;
+}
+
+function renderBubble(role, content) {
+    const scroller = document.getElementById('chat-scroller');
+    const row = document.createElement('div');
+    row.className = `message-row ${role === 'user' ? 'user' : 'ai'}`;
+    
+    let avatarHTML = '';
+    if (role === 'user') {
+        if (userProfile.avatar) avatarHTML = `<img src="${userProfile.avatar}" class="msg-avatar">`;
+        else avatarHTML = `<div class="msg-avatar">${userProfile.name.charAt(0).toUpperCase()}</div>`;
+    } else {
+        avatarHTML = `
+            <div class="msg-avatar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z"></path>
+                </svg>
+            </div>
+        `;
+    }
+    
+    row.innerHTML = `${avatarHTML}<div class="msg-bubble"><div class="msg-content">${parseMarkdown(content)}</div></div>`;
+    scroller.appendChild(row);
+    setTimeout(() => scroller.scrollTop = scroller.scrollHeight, 50);
+}
+
+// ==== 等待思考状态处理 ====
+function showThinkingIndicator() {
+    const scroller = document.getElementById('chat-scroller');
+    const row = document.createElement('div');
+    row.className = 'message-row ai';
+    row.id = 'thinking-indicator-row';
+    
+    row.innerHTML = `
+        <div class="msg-avatar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z"></path>
+            </svg>
+        </div>
+        <div class="msg-bubble">
+            <div class="thinking-indicator">
+                <span style="font-size:13px; color:var(--text-sec); margin-right:4px;">Yomi 正在思考</span>
+                <div class="thinking-dot"></div>
+                <div class="thinking-dot"></div>
+                <div class="thinking-dot"></div>
+            </div>
+        </div>
+    `;
+    scroller.appendChild(row);
+    setTimeout(() => scroller.scrollTop = scroller.scrollHeight, 50);
+}
+
+function removeThinkingIndicator() {
+    const el = document.getElementById('thinking-indicator-row');
+    if (el) el.remove();
+}
+
+// ==== Link+ 强大的核心旗舰模型动态选择逻辑 ====
+function getTargetModel(provider, mode) {
+    const customConfigured = localStorage.getItem('yomilink_api_model') || '';
+    if (mode === 'pro') {
+        if (provider === 'deepseek') return 'deepseek-reasoner'; 
+        if (provider === 'openai') return 'gpt-4o'; 
+    }
+    return customConfigured || (provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini');
+}
+
+// ==== 动态实时环境数据生成 (让模型时刻掌握正确的时间) ====
+function getDynamicSystemPrompt(mode) {
+    const now = new Date();
+    // 动态提取本地时间及星期
+    const timeString = now.toLocaleString('zh-CN', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        weekday: 'long',
+        hour12: false
+    });
+    
+    const basePrompt = PROMPTS[mode] || PROMPTS.casual;
+    // 将真实时间深度绑定至系统人格中，确保时效性问题绝对精准
+    return `${basePrompt}\n\n[实时环境信息]\n当前准确系统时间：${timeString}\n请以此时间作为事实基准进行一切时间推导（如日期计算、未来推演、历史定位、时区转换等），确保回复事实百分百无误。`;
+}
+
+// =========================================================
+// 【内置 AI 预留接口】(BUILT-IN AI INTERFACE PRESET)
+// =========================================================
+/**
+ * 开发者预留区：本地/内置 AI 统一调用接口
+ * 如果后续项目需要运行在本地，或打包为 Electron / WebLLM 等内置本地大模型方案：
+ * 请直接将下方代码注释解除，并替换为您本地/内置模型的请求实现（例如 Ollama 的 11434 端口）。
+ */
+async function callBuiltInAI(payload, apiConfig) {
+    /* 
+    // === 开发者内置本地 LLM 对接配置示范 (以本地 Ollama 为例) ===
+    const LOCAL_ENDPOINT = "http://localhost:11434/v1/chat/completions";
+    const LOCAL_MODEL = "llama3"; // 或您指定的本地内置模型名称
+    
+    const response = await fetch(LOCAL_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: LOCAL_MODEL,
+            messages: payload,
+            temperature: apiConfig.temperature
+        })
+    });
+    return response;
+    */
+    
+    // 默认内置 AI 占位报错：引导开发者去填充上述配置
+    throw new Error("检测到内置 AI 接口已被启动，请先在 callBuiltInAI 函数中完成您的本地大模型对接代码。");
+}
+
+
+const inputEl = document.getElementById('main-input');
+const sendBtn = document.getElementById('send-button');
+
+function autoExpand(el) {
+    el.style.height = '24px';
+    el.style.height = el.scrollHeight + 'px';
+    if(el.value.trim().length > 0) sendBtn.classList.add('active');
+    else sendBtn.classList.remove('active');
+}
+
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+
+async function handleSend() {
+    if (isGenerating) return;
+    const text = inputEl.value.trim();
+    if (!text) return;
+    
+    inputEl.value = ''; autoExpand(inputEl);
+    document.getElementById('welcome-screen').classList.add('hidden');
+    
+    const hist = sessions[currentSessionId].history;
+    hist.push({ role: 'user', content: text });
+    if (hist.length === 1) sessions[currentSessionId].title = text.substring(0, 15);
+    
+    saveSessions(); renderSidebarSessions(); renderBubble('user', text);
+    await requestAI();
+}
+
+async function requestAI() {
+    isGenerating = true;
+    const base = document.getElementById('api-base').value;
+    const key = document.getElementById('api-key').value;
+    const provider = document.getElementById('api-provider').value;
+    
+    if (!key) { finishAI("未配置 API Key。请在左侧侧边栏打开设置。"); return; }
+    
+    // 显示呼吸思考动画
+    showThinkingIndicator();
+    
+    const activeModel = getTargetModel(provider, currentMode);
+    const temp = currentMode === 'pro' ? 0.2 : 0.0;
+    
+    // 1. 获取包含本地动态实时时钟的系统 System Prompt
+    const systemPromptContent = getDynamicSystemPrompt(currentMode);
+    const sysMsg = { role: 'system', content: systemPromptContent };
+    const payload = [sysMsg, ...sessions[currentSessionId].history.slice(-10)];
+    
+    // =========================================================
+    // 【内置 AI 与 云端 API】 路由控制器
+    // =========================================================
+    // 如果您未来需要启用“内置 AI”本地端，请将下方逻辑开关设为 true。
+    const USE_BUILTIN_AI = false; 
+    
+    try {
+        let res;
+        if (USE_BUILTIN_AI) {
+            // A. 执行预留的内置 AI 接口
+            res = await callBuiltInAI(payload, { temperature: temp });
+        } else {
+            // B. 执行标准外部云端 API 接口
+            res = await fetch(`${base}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                body: JSON.stringify({ model: activeModel, messages: payload, temperature: temp })
+            });
+        }
+        
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        
+        removeThinkingIndicator(); // 移除思考等待动画
+        finishAI(data.choices[0].message.content);
+    } catch(e) { 
+        removeThinkingIndicator(); 
+        finishAI(`连接异常：${e.message}`); 
+    }
+}
+
+function finishAI(text) {
+    isGenerating = false;
+    sessions[currentSessionId].history.push({ role: 'assistant', content: text });
+    saveSessions(); renderBubble('assistant', text);
+}
+
+// ==== Workspace ====
+function openArtifact(b64) {
+    currentArtifactCode = decodeBase64(b64); 
+    document.getElementById('code-viewer').value = currentArtifactCode;
+    toggleWorkspace(true);
+    switchWsView('preview');
+}
+
+function toggleWorkspace(show) {
+    const ws = document.getElementById('workspace');
+    if(show) { ws.classList.remove('hidden'); ws.classList.add('open'); } 
+    else { ws.classList.add('hidden'); ws.classList.remove('open'); }
+}
+
+function switchWsView(type) {
+    const prev = document.getElementById('live-preview-frame');
+    const code = document.getElementById('code-viewer');
+    const bPrev = document.getElementById('ws-btn-preview');
+    const bCode = document.getElementById('ws-btn-code');
+    
+    if (type === 'preview') {
+        prev.style.display = 'block'; code.style.display = 'none';
+        bPrev.style.color = 'var(--accent-pro)'; bCode.style.color = 'var(--text-main)';
+        const doc = prev.contentDocument || prev.contentWindow.document;
+        doc.open(); doc.write(currentArtifactCode); doc.close();
+    } else {
+        prev.style.display = 'none'; code.style.display = 'block';
+        bPrev.style.color = 'var(--text-main)'; bCode.style.color = 'var(--accent-pro)';
+    }
+}
+
+function toggleSidebar(show) {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('mobile-backdrop');
+    if (show) { sb.classList.add('open'); bd.classList.add('show'); } 
+    else { sb.classList.remove('open'); bd.classList.remove('show'); }
+}
+
+function toggleMode() {
+    const title = document.getElementById('top-title');
+    if (currentMode === 'casual') {
+        currentMode = 'pro';
+        title.innerHTML = `Yomi Link<span style="color:var(--accent-pro);font-weight:800;">+</span> <span style="font-size:12px;color:var(--text-sec);">▾</span>`;
+    } else if (currentMode === 'pro') {
+        currentMode = 'se';
+        title.innerHTML = `Yomi Link <span style="color:var(--accent-se);font-weight:800;">SE</span> <span style="font-size:12px;color:var(--text-sec);">▾</span>`;
+    } else {
+        currentMode = 'casual';
+        title.innerHTML = `Yomi Link <span style="font-size:12px;color:var(--text-sec);">▾</span>`;
+    }
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('api-key');
+    const icon = document.getElementById('eye-icon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`;
+    } else {
+        input.type = 'password';
+        icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`;
+    }
+}
+
+function openSettingsModal() { document.getElementById('settings-modal').classList.add('show'); if(window.innerWidth<=768) toggleSidebar(false); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function presetApi() {
+    const prov = document.getElementById('api-provider').value;
+    if (prov === 'deepseek') { document.getElementById('api-base').value = 'https://api.deepseek.com/v1'; document.getElementById('api-model').value = 'deepseek-chat'; } 
+    else { document.getElementById('api-base').value = 'https://api.openai.com/v1'; document.getElementById('api-model').value = 'gpt-4o-mini'; }
+}
+
+function saveSettings() {
+    localStorage.setItem('yomilink_api_prov', document.getElementById('api-provider').value);
+    localStorage.setItem('yomilink_api_base', document.getElementById('api-base').value);
+    localStorage.setItem('yomilink_api_key', document.getElementById('api-key').value);
+    localStorage.setItem('yomilink_api_model', document.getElementById('api-model').value);
+    closeModal('settings-modal');
+}
+
+function hardReset() { if(confirm("确定清除所有本地记忆及配置数据？")) { localStorage.clear(); location.reload(); } }
+
+window.onload = initApp;
+</script>
+</body>
+</html>
